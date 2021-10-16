@@ -1,3 +1,4 @@
+from apps.channelmembers.serializers import UserSerializer
 from django.utils.text import slugify
 from rest_framework import serializers
 
@@ -42,42 +43,13 @@ class ChannelSerializer(serializers.Serializer):
         user_id = instance.get("owner")
         slug = slugify(instance.get("name"))
         channel = Channel(**instance, slug=slug)
-        channel.users = {user_id: {"_id": user_id, "is_admin": True}}
+        channel.users = {
+            user_id: UserSerializer(
+                data={"_id": user_id, "is_admin": True, "notifications": {}}
+            ).data
+        }
         data = {"channel": channel}
         return data
-
-
-class NotificationsSettingSerializer(serializers.Serializer):
-
-    web = serializers.ChoiceField(choices=("all", "mentions", "nothing"), default="all")
-    mobile = serializers.ChoiceField(
-        choices=("all", "mentions", "nothing"), default="all"
-    )
-    same_for_mobile = serializers.BooleanField(
-        default=True,
-        help_text="Default: true. False if user has set web client\
-             notifications preferences to be different for mobile.",
-    )
-    mute = serializers.BooleanField(
-        default=False, help_text="Default: false. true if user has muted this channel."
-    )
-
-
-class UserSerializer(serializers.Serializer):
-
-    _id = serializers.CharField(max_length=30, required=True, help_text="User ID")
-    role_id = serializers.CharField(
-        max_length=30, required=False, help_text="Role ID", default=None
-    )
-
-    starred = serializers.BooleanField(
-        default=False,
-        help_text="Default: false. True if the channel is starred by user.",
-    )
-    is_admin = serializers.BooleanField(
-        default=False, help_text="Default: false. True if the member is an admin"
-    )
-    notifications = NotificationsSettingSerializer(required=False)
 
 
 class ChannelGetSerializer(serializers.Serializer):
@@ -242,11 +214,3 @@ class RoomSerializer(serializers.Serializer):
         }
 
         return ChannelSerializer(data=data, context={"org_id": self.data.get("org_id")})
-
-
-class AddMembersSerializer(serializers.Serializer):
-
-    room_id = serializers.CharField(max_length=30)
-    member_ids = serializers.ListField(
-        child=serializers.CharField(max_length=30), allow_empty=False
-    )
